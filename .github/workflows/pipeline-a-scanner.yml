@@ -15,9 +15,6 @@ on:
         required: true
         default: "juice-shop"
 
-  schedule:
-    - cron: "0 2 * * *"
-
 permissions:
   contents: write
 
