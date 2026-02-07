@@ -1,0 +1,68 @@
+{
+  "app": "juice-shop",
+  "timestamp": "2026-02-07T23:23:51.814389+00:00",
+  "pipeline_id": "21788596638",
+  "pipeline_url": "https://github.com/cybersociety2077/mi-poc-breaking-build/actions/runs/21788596638",
+  "summary": {
+    "total": 6,
+    "critical": 0,
+    "high": 3,
+    "medium": 0,
+    "low": 3,
+    "info": 0
+  },
+  "scans_completed": [
+    "headers",
+    "tls"
+  ],
+  "findings": [
+    {
+      "title": "Missing header: Strict-Transport-Security",
+      "severity": "high",
+      "category": "headers",
+      "description": "Fuerza el uso de HTTPS. Previene ataques de downgrade a HTTP.",
+      "detail": "Recomendado: max-age=31536000; includeSubDomains",
+      "status": "open"
+    },
+    {
+      "title": "Missing header: Content-Security-Policy",
+      "severity": "high",
+      "category": "headers",
+      "description": "Controla qu\u00e9 recursos puede cargar la p\u00e1gina. Mitiga XSS e inyecciones.",
+      "detail": "Recomendado: default-src 'self'",
+      "status": "open"
+    },
+    {
+      "title": "Missing header: Referrer-Policy",
+      "severity": "low",
+      "category": "headers",
+      "description": "Controla cu\u00e1nta informaci\u00f3n del referrer se env\u00eda en las peticiones.",
+      "detail": "Recomendado: strict-origin-when-cross-origin",
+      "status": "open"
+    },
+    {
+      "title": "Missing header: Permissions-Policy",
+      "severity": "low",
+      "category": "headers",
+      "description": "Controla qu\u00e9 APIs del navegador puede usar la p\u00e1gina (c\u00e1mara, micr\u00f3fono, etc.).",
+      "detail": "Recomendado: geolocation=(), camera=(), microphone=()",
+      "status": "open"
+    },
+    {
+      "title": "Missing header: X-XSS-Protection",
+      "severity": "low",
+      "category": "headers",
+      "description": "Activa el filtro XSS del navegador (legacy, pero a\u00fan \u00fatil).",
+      "detail": "Recomendado: 1; mode=block",
+      "status": "open"
+    },
+    {
+      "title": "TLS: NO_TLS",
+      "severity": "high",
+      "category": "tls",
+      "description": "Target does not support HTTPS/TLS. All traffic is unencrypted.",
+      "detail": "CVE: N/A. CWE: N/A",
+      "status": "open"
+    }
+  ]
+}
