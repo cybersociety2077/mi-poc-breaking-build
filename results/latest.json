@@ -1,8 +1,8 @@
 {
   "app": "juice-shop",
-  "timestamp": "2026-02-07T23:37:52.340452+00:00",
-  "pipeline_id": "21788756521",
-  "pipeline_url": "https://github.com/cybersociety2077/mi-poc-breaking-build/actions/runs/21788756521",
+  "timestamp": "2026-02-07T23:51:43.825758+00:00",
+  "pipeline_id": "21788921718",
+  "pipeline_url": "https://github.com/cybersociety2077/mi-poc-breaking-build/actions/runs/21788921718",
   "summary": {
     "total": 17,
     "critical": 0,
@@ -80,7 +80,7 @@
       "severity": "low",
       "category": "dast",
       "description": "<p>The page includes one or more script files from a third-party domain.</p>",
-      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/, http://localhost:3000/sitemap.xml, http://localhost:3000/sitemap.xml",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000, http://localhost:3000/, http://localhost:3000/, http://localhost:3000/sitemap.xml",
       "solution": "<p>Ensure JavaScript source files are loaded from only trusted sources, and the sources can't be controlled by end users of the application.</p>",
       "status": "open"
     },
@@ -107,7 +107,7 @@
       "severity": "low",
       "category": "dast",
       "description": "<p>Cross-Origin-Embedder-Policy header is a response header that prevents a document from loading any cross-origin resources that don't explicitly grant the document permission (using CORP or CORS).</p>",
-      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/ftp, http://localhost:3000/juice-shop/node_modules/express/lib/router/layer.js:95:5, http://localhost:3000/sitemap.xml",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/ftp, http://localhost:3000/juice-shop/build/routes/fileServer.js:59:18, http://localhost:3000/sitemap.xml",
       "solution": "<p>Ensure that the application/web server sets the Cross-Origin-Embedder-Policy header appropriately, and that it sets the Cross-Origin-Embedder-Policy header to 'require-corp' for documents.</p><p>If possible, ensure that the end user uses a standards-compliant and modern web browser that supports ",
       "status": "open"
     },
@@ -134,7 +134,7 @@
       "severity": "info",
       "category": "dast",
       "description": "<p>The application appears to be a modern web application. If you need to explore it automatically then the Ajax Spider may well be more effective than the standard one.</p>",
-      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/juice-shop/node_modules/express/lib/router/index.js:328:13, http://localhost:3000/juice-shop/node_modules/express/lib/router/layer.js:95:5, http://localhost:3000/sitemap.xml",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/juice-shop/build/routes/fileServer.js:43:13, http://localhost:3000/juice-shop/build/routes/fileServer.js:59:18, http://localhost:3000/sitemap.xml",
       "solution": "<p>This is an informational alert and so no changes are required.</p>",
       "status": "open"
     },
