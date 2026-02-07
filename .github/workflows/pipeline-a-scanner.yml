@@ -1,5 +1,5 @@
 # ================================================================
-# PIPELINE A — Security Scanner
+# PIPELINE A — Security Scanner (v2 — fix: manual Docker start)
 # ================================================================
 # Este workflow levanta OWASP Juice Shop, ejecuta 3 scanners de
 # seguridad y commitea los resultados en results/latest.json
@@ -8,6 +8,10 @@
 #   - Manual: desde la pestaña Actions > "Pipeline A" > Run workflow
 #   - Automático: cada día a las 2am UTC (puedes cambiarlo)
 #   - Por API: desde Pipeline B u otro workflow
+#
+# NOTA: Juice Shop se levanta manualmente con docker run en vez de
+# usar "services:" porque la imagen es pesada y el health check
+# de services tiene un timeout limitado.
 # ================================================================
 
 name: "Pipeline A — Security Scanner"
@@ -41,21 +45,6 @@ jobs:
     name: "🔍 Run Security Scans"
     runs-on: ubuntu-latest
 
-    # ── Servicios Docker ──
-    # GitHub Actions permite levantar containers como "servicios"
-    # que corren en paralelo con tu job. Perfecto para Juice Shop.
-    services:
-      juice-shop:
-        image: bkimminich/juice-shop:latest
-        ports:
-          - 3000:3000
-        # Esperar a que Juice Shop esté listo
-        options: >-
-          --health-cmd "curl -f http://localhost:3000 || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
       # ── Checkout del repo ──
       - name: "📥 Checkout repo"
@@ -74,19 +63,41 @@ jobs:
       - name: "📁 Crear directorio results"
         run: mkdir -p results
 
+      # ══════════════════════════════════════
+      # LEVANTAR JUICE SHOP (manual con docker)
+      # ══════════════════════════════════════
+      - name: "🧃 Levantar Juice Shop"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Descargando y levantando Juice Shop"
+          echo "══════════════════════════════════════"
+
+          # Descargar la imagen primero (puede tardar ~1-2 min)
+          docker pull bkimminich/juice-shop:latest
+
+          # Levantar en background
+          docker run -d \
+            --name juice-shop \
+            -p 3000:3000 \
+            bkimminich/juice-shop:latest
+
+          echo "✅ Contenedor iniciado"
+
       # ── Esperar a que Juice Shop esté listo ──
       - name: "⏳ Esperar a Juice Shop"
         run: |
           echo "Esperando a que Juice Shop esté listo..."
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -q "200"; then
-              echo "✅ Juice Shop está listo!"
+              echo "✅ Juice Shop está listo! (intento $i)"
               exit 0
             fi
-            echo "  Intento $i/30 — esperando 5s..."
+            echo "  Intento $i/60 — esperando 5s..."
             sleep 5
           done
           echo "❌ Juice Shop no respondió a tiempo"
+          echo "Logs del contenedor:"
+          docker logs juice-shop
           exit 1
 
       # ════════════════════════════════════
@@ -138,8 +149,8 @@ jobs:
       # ════════════════════════════════════
       # NOTA: Juice Shop en localhost usa HTTP, no HTTPS.
       # En un caso real, escanearías el dominio con HTTPS.
-      # Para la POC, generamos un reporte de ejemplo que muestra
-      # que el scan se intentó pero el target no tiene TLS.
+      # Para la POC, generamos un reporte que muestra
+      # que el target no tiene TLS.
       - name: "🔐 Scan 3: TLS/SSL Check"
         run: |
           echo "══════════════════════════════════════"
@@ -208,10 +219,17 @@ jobs:
           ls -la results/
 
       # ════════════════════════════════════
+      # CLEANUP: Detener Juice Shop
+      # ════════════════════════════════════
+      - name: "🧹 Detener Juice Shop"
+        if: always()
+        run: |
+          docker stop juice-shop || true
+          docker rm juice-shop || true
+
+      # ════════════════════════════════════
       # COMMIT: Guardar resultados en el repo
       # ════════════════════════════════════
-      # Commiteamos results/latest.json para que Pipeline B
-      # pueda leerlo cuando se ejecute.
       - name: "💾 Commit resultados al repo"
         run: |
           git config user.name "Security Scanner Bot"
