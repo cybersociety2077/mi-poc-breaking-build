@@ -1,18 +1,19 @@
 {
   "app": "juice-shop",
-  "timestamp": "2026-02-07T23:23:51.814389+00:00",
-  "pipeline_id": "21788596638",
-  "pipeline_url": "https://github.com/cybersociety2077/mi-poc-breaking-build/actions/runs/21788596638",
+  "timestamp": "2026-02-07T23:37:52.340452+00:00",
+  "pipeline_id": "21788756521",
+  "pipeline_url": "https://github.com/cybersociety2077/mi-poc-breaking-build/actions/runs/21788756521",
   "summary": {
-    "total": 6,
+    "total": 17,
     "critical": 0,
     "high": 3,
-    "medium": 0,
-    "low": 3,
-    "info": 0
+    "medium": 2,
+    "low": 8,
+    "info": 4
   },
   "scans_completed": [
     "headers",
+    "zap",
     "tls"
   ],
   "findings": [
@@ -54,6 +55,105 @@
       "category": "headers",
       "description": "Activa el filtro XSS del navegador (legacy, pero a\u00fan \u00fatil).",
       "detail": "Recomendado: 1; mode=block",
+      "status": "open"
+    },
+    {
+      "title": "Content Security Policy (CSP) Header Not Set",
+      "severity": "medium",
+      "category": "dast",
+      "description": "<p>Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks, including Cross Site Scripting (XSS) and data injection attacks. These attacks are used for everything from data theft to site defacement or distribution of malware. CSP provides a set of standard HTTP headers that allow website owners to declare approved sources of content that browsers should be allowed to load on that page \u2014 covered types are JavaScript, CSS, HTML frames,",
+      "detail": "Confidence: 3. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/ftp/coupons_2013.md.bak, http://localhost:3000/ftp/eastere.gg, http://localhost:3000/sitemap.xml",
+      "solution": "<p>Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.</p>",
+      "status": "open"
+    },
+    {
+      "title": "Cross-Domain Misconfiguration",
+      "severity": "medium",
+      "category": "dast",
+      "description": "<p>Web browser data loading may be possible, due to a Cross Origin Resource Sharing (CORS) misconfiguration on the web server.</p>",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/robots.txt, http://localhost:3000/sitemap.xml, http://localhost:3000/styles.css",
+      "solution": "<p>Ensure that sensitive data is not available in an unauthenticated manner (using IP address white-listing, for instance).</p><p>Configure the \"Access-Control-Allow-Origin\" HTTP header to a more restrictive set of domains, or remove all CORS headers entirely, to allow the web browser to enforce the",
+      "status": "open"
+    },
+    {
+      "title": "Cross-Domain JavaScript Source File Inclusion",
+      "severity": "low",
+      "category": "dast",
+      "description": "<p>The page includes one or more script files from a third-party domain.</p>",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/, http://localhost:3000/sitemap.xml, http://localhost:3000/sitemap.xml",
+      "solution": "<p>Ensure JavaScript source files are loaded from only trusted sources, and the sources can't be controlled by end users of the application.</p>",
+      "status": "open"
+    },
+    {
+      "title": "Dangerous JS Functions",
+      "severity": "low",
+      "category": "dast",
+      "description": "<p>A dangerous JS function seems to be in use that would leave the site vulnerable.</p>",
+      "detail": "Confidence: 1. Affected URLs: http://localhost:3000/main.js, http://localhost:3000/vendor.js",
+      "solution": "<p>See the references for security advice on the use of these functions.</p>",
+      "status": "open"
+    },
+    {
+      "title": "Deprecated Feature Policy Header Set",
+      "severity": "low",
+      "category": "dast",
+      "description": "<p>The header has now been renamed to Permissions-Policy.</p>",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/polyfills.js, http://localhost:3000/runtime.js, http://localhost:3000/sitemap.xml",
+      "solution": "<p>Ensure that your web server, application server, load balancer, etc. is configured to set the Permissions-Policy header instead of the Feature-Policy header.</p>",
+      "status": "open"
+    },
+    {
+      "title": "Insufficient Site Isolation Against Spectre Vulnerability",
+      "severity": "low",
+      "category": "dast",
+      "description": "<p>Cross-Origin-Embedder-Policy header is a response header that prevents a document from loading any cross-origin resources that don't explicitly grant the document permission (using CORP or CORS).</p>",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/ftp, http://localhost:3000/juice-shop/node_modules/express/lib/router/layer.js:95:5, http://localhost:3000/sitemap.xml",
+      "solution": "<p>Ensure that the application/web server sets the Cross-Origin-Embedder-Policy header appropriately, and that it sets the Cross-Origin-Embedder-Policy header to 'require-corp' for documents.</p><p>If possible, ensure that the end user uses a standards-compliant and modern web browser that supports ",
+      "status": "open"
+    },
+    {
+      "title": "Timestamp Disclosure - Unix",
+      "severity": "low",
+      "category": "dast",
+      "description": "<p>A timestamp was disclosed by the application/web server. - Unix</p>",
+      "detail": "Confidence: 1. Affected URLs: http://localhost:3000, http://localhost:3000, http://localhost:3000/, http://localhost:3000/, http://localhost:3000/",
+      "solution": "<p>Manually confirm that the timestamp data is not sensitive, and that the data cannot be aggregated to disclose exploitable patterns.</p>",
+      "status": "open"
+    },
+    {
+      "title": "Information Disclosure - Suspicious Comments",
+      "severity": "info",
+      "category": "dast",
+      "description": "<p>The response appears to contain suspicious comments which may help an attacker.</p>",
+      "detail": "Confidence: 1. Affected URLs: http://localhost:3000/main.js, http://localhost:3000/vendor.js",
+      "solution": "<p>Remove all comments that return information that may help an attacker and fix any underlying problems they refer to.</p>",
+      "status": "open"
+    },
+    {
+      "title": "Modern Web Application",
+      "severity": "info",
+      "category": "dast",
+      "description": "<p>The application appears to be a modern web application. If you need to explore it automatically then the Ajax Spider may well be more effective than the standard one.</p>",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/juice-shop/node_modules/express/lib/router/index.js:328:13, http://localhost:3000/juice-shop/node_modules/express/lib/router/layer.js:95:5, http://localhost:3000/sitemap.xml",
+      "solution": "<p>This is an informational alert and so no changes are required.</p>",
+      "status": "open"
+    },
+    {
+      "title": "Storable and Cacheable Content",
+      "severity": "info",
+      "category": "dast",
+      "description": "<p>The response contents are storable by caching components such as proxy servers, and may be retrieved directly from the cache, rather than from the origin server by the caching servers, in response to similar requests from other users. If the response data is sensitive, personal or user-specific, this may result in sensitive information being leaked. In some cases, this may even result in a user gaining complete control of the session of another user, depending on the configuration of the cach",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000/robots.txt",
+      "solution": "<p>Validate that the response does not contain sensitive, personal or user-specific information. If it does, consider the use of the following HTTP response headers, to limit, or prevent the content being stored and retrieved from the cache by another user:</p><p>Cache-Control: no-cache, no-store, m",
+      "status": "open"
+    },
+    {
+      "title": "Storable but Non-Cacheable Content",
+      "severity": "info",
+      "category": "dast",
+      "description": "<p>The response contents are storable by caching components such as proxy servers, but will not be retrieved directly from the cache, without validating the request upstream, in response to similar requests from other users.</p>",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/assets/public/favicon_js.ico, http://localhost:3000/runtime.js, http://localhost:3000/sitemap.xml",
+      "solution": "",
       "status": "open"
     },
     {
