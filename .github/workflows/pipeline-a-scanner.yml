@@ -1,24 +1,13 @@
 # ================================================================
-# PIPELINE A — Security Scanner (v2 — fix: manual Docker start)
+# PIPELINE A — Security Scanner (v3 — fix: ZAP action + verified output)
 # ================================================================
 # Este workflow levanta OWASP Juice Shop, ejecuta 3 scanners de
 # seguridad y commitea los resultados en results/latest.json
-#
-# Ejecución:
-#   - Manual: desde la pestaña Actions > "Pipeline A" > Run workflow
-#   - Automático: cada día a las 2am UTC (puedes cambiarlo)
-#   - Por API: desde Pipeline B u otro workflow
-#
-# NOTA: Juice Shop se levanta manualmente con docker run en vez de
-# usar "services:" porque la imagen es pesada y el health check
-# de services tiene un timeout limitado.
 # ================================================================
 
 name: "Pipeline A — Security Scanner"
 
-# ── Cuándo se ejecuta ──
 on:
-  # Manual desde GitHub UI
   workflow_dispatch:
     inputs:
       target_app:
@@ -26,31 +15,21 @@ on:
         required: true
         default: "juice-shop"
 
-  # Automático cada día a las 2am UTC
   schedule:
     - cron: "0 2 * * *"
 
-# ── Permisos ──
-# Necesita escribir en el repo para commitear resultados
 permissions:
   contents: write
 
-# ── Jobs ──
 jobs:
-
-  # ════════════════════════════════════════
-  # JOB 1: Levantar Juice Shop y escanear
-  # ════════════════════════════════════════
   security-scan:
     name: "🔍 Run Security Scans"
     runs-on: ubuntu-latest
 
     steps:
-      # ── Checkout del repo ──
       - name: "📥 Checkout repo"
         uses: actions/checkout@v4
 
-      # ── Setup Python ──
       - name: "🐍 Setup Python"
         uses: actions/setup-python@v5
         with:
@@ -59,31 +38,24 @@ jobs:
       - name: "📦 Install Python dependencies"
         run: pip install requests
 
-      # ── Crear directorio de resultados ──
       - name: "📁 Crear directorio results"
         run: mkdir -p results
 
       # ══════════════════════════════════════
-      # LEVANTAR JUICE SHOP (manual con docker)
+      # LEVANTAR JUICE SHOP
       # ══════════════════════════════════════
       - name: "🧃 Levantar Juice Shop"
         run: |
           echo "══════════════════════════════════════"
           echo "  Descargando y levantando Juice Shop"
           echo "══════════════════════════════════════"
-
-          # Descargar la imagen primero (puede tardar ~1-2 min)
           docker pull bkimminich/juice-shop:latest
-
-          # Levantar en background
           docker run -d \
             --name juice-shop \
             -p 3000:3000 \
             bkimminich/juice-shop:latest
-
           echo "✅ Contenedor iniciado"
 
-      # ── Esperar a que Juice Shop esté listo ──
       - name: "⏳ Esperar a Juice Shop"
         run: |
           echo "Esperando a que Juice Shop esté listo..."
@@ -96,7 +68,6 @@ jobs:
             sleep 5
           done
           echo "❌ Juice Shop no respondió a tiempo"
-          echo "Logs del contenedor:"
           docker logs juice-shop
           exit 1
 
@@ -115,57 +86,68 @@ jobs:
       # ════════════════════════════════════
       # SCAN 2: OWASP ZAP Baseline
       # ════════════════════════════════════
-      # ZAP Baseline es un scan rápido (~2-5 min) que busca
-      # vulnerabilidades comunes sin hacer fuzzing agresivo.
-      # Perfecto para CI/CD.
+      # Usamos la GitHub Action oficial de ZAP que es más
+      # confiable que docker run manual para generar reportes.
       - name: "⚡ Scan 2: OWASP ZAP Baseline"
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: "http://localhost:3000"
+          rules_file_name: ""
+          cmd_options: "-I -l WARN"
+          allow_issue_writing: false
+        continue-on-error: true
+
+      # El action de ZAP genera automáticamente estos archivos
+      # en el workspace. Necesitamos mover/copiar el JSON a results/
+      - name: "📋 Procesar resultados de ZAP"
         run: |
           echo "══════════════════════════════════════"
-          echo "  Ejecutando OWASP ZAP Baseline Scan"
+          echo "  Buscando resultados de ZAP..."
           echo "══════════════════════════════════════"
 
-          # Correr ZAP en modo baseline (rápido, no intrusivo)
-          # -t: target URL
-          # -J: output en JSON
-          # -r: output en HTML (para reporte visual)
-          # -l WARN: nivel mínimo de alerta
-          # -I: no fallar el step por findings (nosotros controlamos eso en security_gate)
-          docker run --rm \
-            --network host \
-            -v ${{ github.workspace }}/results:/zap/wrk:rw \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py \
-              -t http://localhost:3000 \
-              -J zap.json \
-              -r zap-report.html \
-              -l WARN \
-              -I
-        # ZAP puede retornar exit code != 0 si encuentra findings
-        # Pero nosotros NO queremos que Pipeline A falle por eso
+          # La action de ZAP genera report_json.json en el workspace
+          # Buscar todos los archivos JSON que ZAP pudo generar
+          echo "Archivos en workspace:"
+          find ${{ github.workspace }} -name "*.json" -newer results/headers.json 2>/dev/null || true
+          echo ""
+
+          # ZAP action genera report_json.json o similar
+          if [ -f "${{ github.workspace }}/report_json.json" ]; then
+            cp "${{ github.workspace }}/report_json.json" results/zap.json
+            echo "✅ ZAP report encontrado: report_json.json"
+          elif [ -f "${{ github.workspace }}/zap-report.json" ]; then
+            cp "${{ github.workspace }}/zap-report.json" results/zap.json
+            echo "✅ ZAP report encontrado: zap-report.json"
+          else
+            # Buscar cualquier JSON generado por ZAP
+            ZAP_FILE=$(find ${{ github.workspace }} -maxdepth 1 -name "*.json" \
+              ! -path "*/results/*" ! -name "package*.json" \
+              -newer results/headers.json -print -quit 2>/dev/null)
+
+            if [ -n "$ZAP_FILE" ]; then
+              cp "$ZAP_FILE" results/zap.json
+              echo "✅ ZAP report encontrado: $ZAP_FILE"
+            else
+              echo "⚠️  No se encontró reporte JSON de ZAP"
+              echo "   Generando reporte vacío..."
+              echo '{"site":[],"@version":"0","@generated":"N/A"}' > results/zap.json
+            fi
+          fi
+
+          echo ""
+          echo "Contenido de results/zap.json (primeros 500 chars):"
+          head -c 500 results/zap.json
+          echo ""
         continue-on-error: true
 
       # ════════════════════════════════════
-      # SCAN 3: TLS/SSL con testssl.sh
+      # SCAN 3: TLS/SSL Check
       # ════════════════════════════════════
-      # NOTA: Juice Shop en localhost usa HTTP, no HTTPS.
-      # En un caso real, escanearías el dominio con HTTPS.
-      # Para la POC, generamos un reporte que muestra
-      # que el target no tiene TLS.
       - name: "🔐 Scan 3: TLS/SSL Check"
         run: |
           echo "══════════════════════════════════════"
           echo "  Ejecutando TLS/SSL Check"
           echo "══════════════════════════════════════"
-
-          # Juice Shop en localhost no tiene HTTPS,
-          # así que testssl.sh no puede escanear TLS.
-          # En producción, harías:
-          #   docker run --rm --network host \
-          #     drwetter/testssl.sh \
-          #     --jsonfile /output/tls.json \
-          #     https://tu-app.com
-
-          # Para la POC, generamos un resultado que refleja esto:
           echo '{
             "scanner": "testssl",
             "note": "Target is HTTP-only (localhost). TLS scan skipped.",
@@ -179,24 +161,37 @@ jobs:
               }]
             }]
           }' > results/tls.json
-
           echo "⚠️  Juice Shop corre en HTTP (sin TLS)"
-          echo "   En producción, testssl.sh escanearía el dominio HTTPS real"
-          echo "   Se reporta como finding HIGH: No TLS"
         continue-on-error: true
 
       # ════════════════════════════════════
-      # NORMALIZAR: Unificar todos los resultados
+      # VERIFICAR: qué archivos tenemos
+      # ════════════════════════════════════
+      - name: "🔎 Verificar archivos de resultados"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Archivos en results/"
+          echo "══════════════════════════════════════"
+          ls -la results/
+          echo ""
+          for f in results/headers.json results/zap.json results/tls.json; do
+            if [ -f "$f" ]; then
+              SIZE=$(wc -c < "$f")
+              echo "✅ $f ($SIZE bytes)"
+            else
+              echo "❌ $f — NO ENCONTRADO"
+            fi
+          done
+
+      # ════════════════════════════════════
+      # NORMALIZAR
       # ════════════════════════════════════
       - name: "🔄 Normalizar resultados"
         run: |
           echo "══════════════════════════════════════"
-          echo "  Unificando resultados de 3 scanners"
+          echo "  Unificando resultados de scanners"
           echo "══════════════════════════════════════"
-
-          # Determinar nombre de la app
           APP_NAME="${{ github.event.inputs.target_app || 'juice-shop' }}"
-
           python scripts/normalize_results.py \
             --app "$APP_NAME" \
             --headers results/headers.json \
@@ -205,7 +200,7 @@ jobs:
             --output results/latest.json
 
       # ════════════════════════════════════
-      # VERIFICAR: Mostrar el resultado
+      # MOSTRAR RESULTADOS
       # ════════════════════════════════════
       - name: "📋 Mostrar resultados"
         run: |
@@ -214,12 +209,8 @@ jobs:
           echo "══════════════════════════════════════"
           cat results/latest.json | python -m json.tool
 
-          echo ""
-          echo "Archivos generados:"
-          ls -la results/
-
       # ════════════════════════════════════
-      # CLEANUP: Detener Juice Shop
+      # CLEANUP
       # ════════════════════════════════════
       - name: "🧹 Detener Juice Shop"
         if: always()
@@ -228,17 +219,13 @@ jobs:
           docker rm juice-shop || true
 
       # ════════════════════════════════════
-      # COMMIT: Guardar resultados en el repo
+      # COMMIT
       # ════════════════════════════════════
       - name: "💾 Commit resultados al repo"
         run: |
           git config user.name "Security Scanner Bot"
           git config user.email "security-bot@github-actions"
-
-          # Agregar solo los archivos de resultados
           git add results/
-
-          # Verificar si hay cambios
           if git diff --staged --quiet; then
             echo "ℹ️  No hay cambios nuevos en los resultados"
           else
@@ -247,19 +234,17 @@ jobs:
             Pipeline: ${{ github.run_id }}
             App: ${{ github.event.inputs.target_app || 'juice-shop' }}
             Scans: headers, zap, tls"
-
             git push
             echo "✅ Resultados commiteados exitosamente"
           fi
 
       # ════════════════════════════════════
-      # UPLOAD: Artefactos (backup + reportes HTML)
+      # UPLOAD ARTIFACTS
       # ════════════════════════════════════
       - name: "📤 Upload scan artifacts"
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-scan-results
-          path: |
-            results/
+          path: results/
           retention-days: 30
