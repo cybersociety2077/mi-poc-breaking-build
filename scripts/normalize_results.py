@@ -43,7 +43,7 @@ from datetime import datetime, timezone
 
 # ZAP usa niveles numéricos de riesgo (0-3)
 ZAP_SEVERITY_MAP = {
-    "3": "high",       # ZAP "High" → nuestro "high"
+    "3": "critical",   # ZAP "High" → nuestro "critical" (máximo riesgo de ZAP)
     "2": "medium",     # ZAP "Medium" → nuestro "medium"
     "1": "low",        # ZAP "Low" → nuestro "low"
     "0": "info",       # ZAP "Informational" → nuestro "info"
