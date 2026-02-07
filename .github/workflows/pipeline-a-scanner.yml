@@ -1,0 +1,247 @@
+# ================================================================
+# PIPELINE A — Security Scanner
+# ================================================================
+# Este workflow levanta OWASP Juice Shop, ejecuta 3 scanners de
+# seguridad y commitea los resultados en results/latest.json
+#
+# Ejecución:
+#   - Manual: desde la pestaña Actions > "Pipeline A" > Run workflow
+#   - Automático: cada día a las 2am UTC (puedes cambiarlo)
+#   - Por API: desde Pipeline B u otro workflow
+# ================================================================
+
+name: "Pipeline A — Security Scanner"
+
+# ── Cuándo se ejecuta ──
+on:
+  # Manual desde GitHub UI
+  workflow_dispatch:
+    inputs:
+      target_app:
+        description: "Nombre de la app a escanear"
+        required: true
+        default: "juice-shop"
+
+  # Automático cada día a las 2am UTC
+  schedule:
+    - cron: "0 2 * * *"
+
+# ── Permisos ──
+# Necesita escribir en el repo para commitear resultados
+permissions:
+  contents: write
+
+# ── Jobs ──
+jobs:
+
+  # ════════════════════════════════════════
+  # JOB 1: Levantar Juice Shop y escanear
+  # ════════════════════════════════════════
+  security-scan:
+    name: "🔍 Run Security Scans"
+    runs-on: ubuntu-latest
+
+    # ── Servicios Docker ──
+    # GitHub Actions permite levantar containers como "servicios"
+    # que corren en paralelo con tu job. Perfecto para Juice Shop.
+    services:
+      juice-shop:
+        image: bkimminich/juice-shop:latest
+        ports:
+          - 3000:3000
+        # Esperar a que Juice Shop esté listo
+        options: >-
+          --health-cmd "curl -f http://localhost:3000 || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      # ── Checkout del repo ──
+      - name: "📥 Checkout repo"
+        uses: actions/checkout@v4
+
+      # ── Setup Python ──
+      - name: "🐍 Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: "📦 Install Python dependencies"
+        run: pip install requests
+
+      # ── Crear directorio de resultados ──
+      - name: "📁 Crear directorio results"
+        run: mkdir -p results
+
+      # ── Esperar a que Juice Shop esté listo ──
+      - name: "⏳ Esperar a Juice Shop"
+        run: |
+          echo "Esperando a que Juice Shop esté listo..."
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 | grep -q "200"; then
+              echo "✅ Juice Shop está listo!"
+              exit 0
+            fi
+            echo "  Intento $i/30 — esperando 5s..."
+            sleep 5
+          done
+          echo "❌ Juice Shop no respondió a tiempo"
+          exit 1
+
+      # ════════════════════════════════════
+      # SCAN 1: Security Headers
+      # ════════════════════════════════════
+      - name: "🔒 Scan 1: Security Headers"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Ejecutando check de Security Headers"
+          echo "══════════════════════════════════════"
+          python scripts/check_headers.py \
+            --url http://localhost:3000 \
+            --output results/headers.json
+
+      # ════════════════════════════════════
+      # SCAN 2: OWASP ZAP Baseline
+      # ════════════════════════════════════
+      # ZAP Baseline es un scan rápido (~2-5 min) que busca
+      # vulnerabilidades comunes sin hacer fuzzing agresivo.
+      # Perfecto para CI/CD.
+      - name: "⚡ Scan 2: OWASP ZAP Baseline"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Ejecutando OWASP ZAP Baseline Scan"
+          echo "══════════════════════════════════════"
+
+          # Correr ZAP en modo baseline (rápido, no intrusivo)
+          # -t: target URL
+          # -J: output en JSON
+          # -r: output en HTML (para reporte visual)
+          # -l WARN: nivel mínimo de alerta
+          # -I: no fallar el step por findings (nosotros controlamos eso en security_gate)
+          docker run --rm \
+            --network host \
+            -v ${{ github.workspace }}/results:/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+              -t http://localhost:3000 \
+              -J zap.json \
+              -r zap-report.html \
+              -l WARN \
+              -I
+        # ZAP puede retornar exit code != 0 si encuentra findings
+        # Pero nosotros NO queremos que Pipeline A falle por eso
+        continue-on-error: true
+
+      # ════════════════════════════════════
+      # SCAN 3: TLS/SSL con testssl.sh
+      # ════════════════════════════════════
+      # NOTA: Juice Shop en localhost usa HTTP, no HTTPS.
+      # En un caso real, escanearías el dominio con HTTPS.
+      # Para la POC, generamos un reporte de ejemplo que muestra
+      # que el scan se intentó pero el target no tiene TLS.
+      - name: "🔐 Scan 3: TLS/SSL Check"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Ejecutando TLS/SSL Check"
+          echo "══════════════════════════════════════"
+
+          # Juice Shop en localhost no tiene HTTPS,
+          # así que testssl.sh no puede escanear TLS.
+          # En producción, harías:
+          #   docker run --rm --network host \
+          #     drwetter/testssl.sh \
+          #     --jsonfile /output/tls.json \
+          #     https://tu-app.com
+
+          # Para la POC, generamos un resultado que refleja esto:
+          echo '{
+            "scanner": "testssl",
+            "note": "Target is HTTP-only (localhost). TLS scan skipped.",
+            "scanResult": [{
+              "targetHost": "localhost:3000",
+              "protocols": [],
+              "vulnerabilities": [{
+                "id": "NO_TLS",
+                "severity": "HIGH",
+                "finding": "Target does not support HTTPS/TLS. All traffic is unencrypted."
+              }]
+            }]
+          }' > results/tls.json
+
+          echo "⚠️  Juice Shop corre en HTTP (sin TLS)"
+          echo "   En producción, testssl.sh escanearía el dominio HTTPS real"
+          echo "   Se reporta como finding HIGH: No TLS"
+        continue-on-error: true
+
+      # ════════════════════════════════════
+      # NORMALIZAR: Unificar todos los resultados
+      # ════════════════════════════════════
+      - name: "🔄 Normalizar resultados"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Unificando resultados de 3 scanners"
+          echo "══════════════════════════════════════"
+
+          # Determinar nombre de la app
+          APP_NAME="${{ github.event.inputs.target_app || 'juice-shop' }}"
+
+          python scripts/normalize_results.py \
+            --app "$APP_NAME" \
+            --headers results/headers.json \
+            --zap results/zap.json \
+            --tls results/tls.json \
+            --output results/latest.json
+
+      # ════════════════════════════════════
+      # VERIFICAR: Mostrar el resultado
+      # ════════════════════════════════════
+      - name: "📋 Mostrar resultados"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Contenido de results/latest.json"
+          echo "══════════════════════════════════════"
+          cat results/latest.json | python -m json.tool
+
+          echo ""
+          echo "Archivos generados:"
+          ls -la results/
+
+      # ════════════════════════════════════
+      # COMMIT: Guardar resultados en el repo
+      # ════════════════════════════════════
+      # Commiteamos results/latest.json para que Pipeline B
+      # pueda leerlo cuando se ejecute.
+      - name: "💾 Commit resultados al repo"
+        run: |
+          git config user.name "Security Scanner Bot"
+          git config user.email "security-bot@github-actions"
+
+          # Agregar solo los archivos de resultados
+          git add results/
+
+          # Verificar si hay cambios
+          if git diff --staged --quiet; then
+            echo "ℹ️  No hay cambios nuevos en los resultados"
+          else
+            git commit -m "🔍 Security scan results — $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+            Pipeline: ${{ github.run_id }}
+            App: ${{ github.event.inputs.target_app || 'juice-shop' }}
+            Scans: headers, zap, tls"
+
+            git push
+            echo "✅ Resultados commiteados exitosamente"
+          fi
+
+      # ════════════════════════════════════
+      # UPLOAD: Artefactos (backup + reportes HTML)
+      # ════════════════════════════════════
+      - name: "📤 Upload scan artifacts"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-scan-results
+          path: |
+            results/
+          retention-days: 30
