@@ -1,0 +1,190 @@
+# ================================================================
+# PIPELINE B — Application Deploy (con Security Gate)
+# ================================================================
+# Simula un pipeline de despliegue que consulta los resultados
+# de seguridad de Pipeline A y decide si romper el build.
+#
+# Flujo:
+#   build → test → security-gate → deploy-staging → deploy-production
+#
+# Si security-gate falla → el pipeline se rompe y NO despliega.
+# ================================================================
+
+name: "Pipeline B — Deploy (Breaking Build)"
+
+# ── Cuándo se ejecuta ──
+on:
+  # Manual: para probar el breaking build
+  workflow_dispatch:
+    inputs:
+      security_policy:
+        description: "Política de seguridad a aplicar"
+        required: true
+        default: "moderate"
+        type: choice
+        options:
+          - strict
+          - moderate
+          - permissive
+
+  # En cada push a main (simula deploy real)
+  # NOTA: Ignoramos cambios en results/ para no crear un loop
+  # (Pipeline A commitea en results/ → trigger Pipeline B → loop)
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "results/**"
+      - "**.md"
+
+jobs:
+
+  # ════════════════════════════════════════
+  # JOB 1: Build (simulado)
+  # ════════════════════════════════════════
+  build:
+    name: "🔨 Build"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@v4
+
+      - name: "🔨 Simular build de la aplicación"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Simulando build de la aplicación..."
+          echo "══════════════════════════════════════"
+          echo "  ✅ Dependencias instaladas"
+          echo "  ✅ Código compilado"
+          echo "  ✅ Imagen Docker construida"
+          echo "  ✅ Build exitoso"
+
+  # ════════════════════════════════════════
+  # JOB 2: Unit Tests (simulado)
+  # ════════════════════════════════════════
+  test:
+    name: "🧪 Tests"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: "🧪 Simular tests unitarios"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Ejecutando tests unitarios..."
+          echo "══════════════════════════════════════"
+          echo "  ✅ 42 tests passed"
+          echo "  ✅ 0 tests failed"
+          echo "  ✅ Coverage: 87%"
+
+  # ════════════════════════════════════════
+  # JOB 3: SECURITY GATE 🛡️ (el breaking build)
+  # ════════════════════════════════════════
+  # Este es EL job que rompe el pipeline si hay
+  # vulnerabilidades que violen la política.
+  # ════════════════════════════════════════
+  security-gate:
+    name: "🛡️ Security Gate"
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: "📥 Checkout (con resultados de Pipeline A)"
+        uses: actions/checkout@v4
+
+      - name: "🐍 Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ── Verificar que existan resultados ──
+      - name: "📂 Verificar resultados de Pipeline A"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Buscando resultados de Pipeline A..."
+          echo "══════════════════════════════════════"
+
+          if [ -f results/latest.json ]; then
+            echo "✅ Encontrado: results/latest.json"
+            echo ""
+            echo "Resumen rápido:"
+            python -c "
+          import json
+          with open('results/latest.json') as f:
+              data = json.load(f)
+          s = data.get('summary', {})
+          print(f'  App:      {data.get(\"app\", \"?\")}'  )
+          print(f'  Timestamp: {data.get(\"timestamp\", \"?\")}'  )
+          print(f'  Findings:  {s.get(\"total\", 0)} total')
+          print(f'  Critical:  {s.get(\"critical\", 0)}')
+          print(f'  High:      {s.get(\"high\", 0)}')
+          print(f'  Medium:    {s.get(\"medium\", 0)}')
+          print(f'  Low:       {s.get(\"low\", 0)}')
+          "
+          else
+            echo "⚠️  No se encontró results/latest.json"
+            echo "   ¿Ya ejecutaste Pipeline A?"
+          fi
+
+      # ════════════════════════════════════
+      # 🚨 AQUÍ SE DECIDE: PASS o BREAK
+      # ════════════════════════════════════
+      - name: "🚨 Ejecutar Security Gate"
+        run: |
+          echo ""
+          echo "╔══════════════════════════════════════╗"
+          echo "║   🛡️  SECURITY GATE — EVALUANDO...   ║"
+          echo "╚══════════════════════════════════════╝"
+          echo ""
+
+          # Determinar la política a usar
+          POLICY="${{ github.event.inputs.security_policy || 'moderate' }}"
+
+          # Ejecutar el security gate
+          # Si retorna exit code 1 → el step falla → el pipeline se rompe
+          python scripts/security_gate.py \
+            --input results/latest.json \
+            --policy "$POLICY"
+
+  # ════════════════════════════════════════
+  # JOB 4: Deploy a Staging (solo si pasa el gate)
+  # ════════════════════════════════════════
+  deploy-staging:
+    name: "🚀 Deploy Staging"
+    runs-on: ubuntu-latest
+    needs: security-gate  # ← Depende del security gate
+
+    steps:
+      - name: "🚀 Simular deploy a staging"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Desplegando a Staging..."
+          echo "══════════════════════════════════════"
+          echo "  ✅ Security Gate pasó correctamente"
+          echo "  ✅ Imagen desplegada en staging"
+          echo "  ✅ Health check: OK"
+          echo "  🌐 URL: https://staging.mi-app.com"
+
+  # ════════════════════════════════════════
+  # JOB 5: Deploy a Producción (manual)
+  # ════════════════════════════════════════
+  deploy-production:
+    name: "🏭 Deploy Production"
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    # En producción real, esto sería un environment con approvals
+    # Para la POC lo dejamos como step final
+    environment:
+      name: production
+
+    steps:
+      - name: "🏭 Simular deploy a producción"
+        run: |
+          echo "══════════════════════════════════════"
+          echo "  Desplegando a Producción..."
+          echo "══════════════════════════════════════"
+          echo "  ✅ Security Gate pasó"
+          echo "  ✅ Staging verificado"
+          echo "  ✅ Imagen desplegada en producción"
+          echo "  🌐 URL: https://mi-app.com"
+          echo ""
+          echo "  🎉 Deploy completado exitosamente!"
