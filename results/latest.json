@@ -1,15 +1,15 @@
 {
   "app": "juice-shop",
-  "timestamp": "2026-02-07T23:51:43.825758+00:00",
-  "pipeline_id": "21788921718",
-  "pipeline_url": "https://github.com/cybersociety2077/mi-poc-breaking-build/actions/runs/21788921718",
+  "timestamp": "2026-02-08T00:10:17.079394+00:00",
+  "pipeline_id": "21789130495",
+  "pipeline_url": "https://github.com/cybersociety2077/mi-poc-breaking-build/actions/runs/21789130495",
   "summary": {
-    "total": 17,
+    "total": 18,
     "critical": 0,
     "high": 3,
     "medium": 2,
     "low": 8,
-    "info": 4
+    "info": 5
   },
   "scans_completed": [
     "headers",
@@ -62,7 +62,7 @@
       "severity": "medium",
       "category": "dast",
       "description": "<p>Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks, including Cross Site Scripting (XSS) and data injection attacks. These attacks are used for everything from data theft to site defacement or distribution of malware. CSP provides a set of standard HTTP headers that allow website owners to declare approved sources of content that browsers should be allowed to load on that page \u2014 covered types are JavaScript, CSS, HTML frames,",
-      "detail": "Confidence: 3. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/ftp/coupons_2013.md.bak, http://localhost:3000/ftp/eastere.gg, http://localhost:3000/sitemap.xml",
+      "detail": "Confidence: 3. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/ftp, http://localhost:3000/ftp/coupons_2013.md.bak, http://localhost:3000/sitemap.xml",
       "solution": "<p>Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.</p>",
       "status": "open"
     },
@@ -80,7 +80,7 @@
       "severity": "low",
       "category": "dast",
       "description": "<p>The page includes one or more script files from a third-party domain.</p>",
-      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000, http://localhost:3000/, http://localhost:3000/, http://localhost:3000/sitemap.xml",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/, http://localhost:3000/sitemap.xml, http://localhost:3000/sitemap.xml",
       "solution": "<p>Ensure JavaScript source files are loaded from only trusted sources, and the sources can't be controlled by end users of the application.</p>",
       "status": "open"
     },
@@ -116,7 +116,7 @@
       "severity": "low",
       "category": "dast",
       "description": "<p>A timestamp was disclosed by the application/web server. - Unix</p>",
-      "detail": "Confidence: 1. Affected URLs: http://localhost:3000, http://localhost:3000, http://localhost:3000/, http://localhost:3000/, http://localhost:3000/",
+      "detail": "Confidence: 1. Affected URLs: http://localhost:3000/, http://localhost:3000/, http://localhost:3000/, http://localhost:3000/sitemap.xml, http://localhost:3000/sitemap.xml",
       "solution": "<p>Manually confirm that the timestamp data is not sensitive, and that the data cannot be aggregated to disclose exploitable patterns.</p>",
       "status": "open"
     },
@@ -134,8 +134,17 @@
       "severity": "info",
       "category": "dast",
       "description": "<p>The application appears to be a modern web application. If you need to explore it automatically then the Ajax Spider may well be more effective than the standard one.</p>",
-      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/juice-shop/build/routes/fileServer.js:43:13, http://localhost:3000/juice-shop/build/routes/fileServer.js:59:18, http://localhost:3000/sitemap.xml",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000, http://localhost:3000/, http://localhost:3000/juice-shop/build/routes/fileServer.js:59:18, http://localhost:3000/juice-shop/node_modules/express/lib/router/layer.js:95:5, http://localhost:3000/sitemap.xml",
       "solution": "<p>This is an informational alert and so no changes are required.</p>",
+      "status": "open"
+    },
+    {
+      "title": "Non-Storable Content",
+      "severity": "info",
+      "category": "dast",
+      "description": "<p>The response contents are not storable by caching components such as proxy servers. If the response does not contain sensitive, personal or user-specific information, it may benefit from being stored and cached, to improve performance.</p>",
+      "detail": "Confidence: 2. Affected URLs: http://localhost:3000/ftp/coupons_2013.md.bak",
+      "solution": "<p>The content may be marked as storable by ensuring that the following conditions are satisfied:</p><p>The request method must be understood by the cache and defined as being cacheable (\"GET\", \"HEAD\", and \"POST\" are currently defined as cacheable)</p><p>The response status code must be understood b",
       "status": "open"
     },
     {
