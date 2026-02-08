@@ -55,8 +55,8 @@ POLICIES = {
     },
     "moderate": {
         "description": "Rompe solo en Critical. Warning en High.",
-        "fail_on": ["critical"],
-        "warn_on": ["high", "medium"],
+        "fail_on": ["critical", "high"],
+        "warn_on": ["medium"],
         "max_age_hours": 72,
         "required_scans": ["headers"],  # Al menos headers
     },
